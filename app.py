@@ -1,56 +1,56 @@
-from flask import Flask, render_template, request, jsonify, send_file
-import pandas as pd
 import os
-import glob
+import pandas as pd
+from flask import Flask, render_template, request, jsonify
+from werkzeug.utils import secure_filename
 from datetime import datetime
+import io
+import base64
 
 app = Flask(__name__)
-
-# Configuration
-UPLOAD_FOLDER = 'uploads'
-OUTPUT_FOLDER = 'outputs'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB limit
 
 # --- HELPER FUNCTIONS ---
 
-def clean_route_name(route_str):
+def clean_route_name(route_name):
     """
-    Cleans the 'Nama Tugas' from source text.
-    Logic: Split by '-', take first 3 chars of each segment, join with ' - '.
-    Example: "PTI777-BGR999..." -> "PTI - BGR"
+    Cleans 'Nama Tugas' (Route Name).
+    Logic: Split by '-', take first 3 parts, join with '-'.
+    Example: 'BGR-SOC-A001-X' -> 'BGR-SOC-A001'
     """
-    if not isinstance(route_str, str):
-        return ""
-    
-    parts = route_str.split('-')
-    cleaned_parts = []
-    
-    for part in parts:
-        cleaned = part.strip()[:3]
-        if cleaned:
-            cleaned_parts.append(cleaned)
-            
-    return " - ".join(cleaned_parts)
+    if not isinstance(route_name, str):
+        return str(route_name)
+    parts = route_name.split('-')
+    if len(parts) >= 3:
+        return "-".join(parts[:3])
+    return route_name
 
-def process_excel_files(file_paths):
+def process_excel_files(files):
+    """
+    Processes a list of file storages objects (in-memory).
+    Returns:
+        final_df (DataFrame): Consolidated data
+        file_summaries (list): Statistics per file
+    """
     all_data = []
     file_summaries = []
-    
-    for file_path in file_paths:
+
+    for file in files:
         try:
-            filename_display = os.path.basename(file_path).split('_', 1)[1] if '_' in os.path.basename(file_path) else os.path.basename(file_path)
+            filename_display = secure_filename(file.filename)
             
-            # Read Excel, Header at Row 4 (index 3)
-            df = pd.read_excel(file_path, header=3)
+            # Read directly from memory
+            # engine='openpyxl' works with file-like objects
+            df = pd.read_excel(file, engine='openpyxl', header=3)
             
-            # Verify structure (check if we have enough columns, max index needed is 22)
+            # Basic validation: Check if required columns exist by index
+            # We strictly need up to index 22 (Col W)
             if df.shape[1] < 23:
-                print(f"Skipping {file_path}: Not enough columns (found {df.shape[1]})")
                 file_summaries.append({
                     "filename": filename_display,
                     "rows": 0,
                     "amount": 0,
+                    "ppn": 0,
+                    "pph": 0,
                     "status": "Error: Columns"
                 })
                 continue
@@ -103,9 +103,9 @@ def process_excel_files(file_paths):
             all_data.append(temp_df)
             
         except Exception as e:
-            print(f"Error processing {file_path}: {e}")
+            print(f"Error processing file: {e}")
             file_summaries.append({
-                "filename": os.path.basename(file_path),
+                "filename": getattr(file, 'filename', 'Unknown'),
                 "rows": 0,
                 "amount": 0,
                 "status": "Error"
@@ -123,133 +123,73 @@ def process_excel_files(file_paths):
 def index():
     return render_template('index.html')
 
-import time
-
-# ... (existing imports)
-
-# --- HELPER FUNCTIONS ---
-
-def cleanup_folders():
-    """
-    Removes files from UPLOAD_FOLDER and OUTPUT_FOLDER that are older than 1 hour.
-    Prevents accumulation of 'junk' files.
-    """
-    now = time.time()
-    cutoff = now - 3600 # 1 hour ago
-    
-    for folder in [UPLOAD_FOLDER, OUTPUT_FOLDER]:
-        if not os.path.exists(folder):
-            continue
-            
-        for filename in os.listdir(folder):
-            file_path = os.path.join(folder, filename)
-            try:
-                if os.path.isfile(file_path):
-                    file_mtime = os.path.getmtime(file_path)
-                    if file_mtime < cutoff:
-                        os.remove(file_path)
-                        print(f"Deleted old file: {filename}")
-            except Exception as e:
-                print(f"Error deleting {file_path}: {e}")
-
-# ... (existing clean_route_name and process_excel_files functions)
-
 @app.route('/api/process', methods=['POST'])
 def process_files():
-    # 1. Run Cleanup First
-    cleanup_folders()
-
-    # Clear upload folder first (optional, or manage better)
-    uploaded_files = request.files.getlist('files')
-    # ...
+    if 'files' not in request.files:
+        return jsonify({"success": False, "error": "No files uploaded"}), 400
+    
+    files = request.files.getlist('files')
     filename_suffix = request.form.get('filename_suffix', '').strip()
     
-    saved_paths = []
-    
-    if not uploaded_files:
-        return jsonify({"error": "No files uploaded"}), 400
+    if not files or files[0].filename == '':
+        return jsonify({"success": False, "error": "No files selected"}), 400
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Process Files (In-Memory)
+    final_df, file_summaries = process_excel_files(files)
     
-    for file in uploaded_files:
-        if file.filename:
-            filename = f"{timestamp}_{file.filename}"
-            path = os.path.join(UPLOAD_FOLDER, filename)
-            file.save(path)
-            saved_paths.append(path)
-    
-    # Process
-    final_df, file_summaries = process_excel_files(saved_paths)
-    
-    # Define exact column order for Excel
+    # Define Columns
     excel_columns = [
         'Agen Operasional', 'Kode Tugas', 'Nama Tugas', 'Plat Mobil', 
-        'Jenis Kendaraan', 'Mode Operasi', 'Metode Perhitungan', 'Berat', 
-        'Tarif Pengiriman per kg', 'Tarif Pengiriman Sistem', 'PPN', 'PPH', 
-        'Total pembayaran aktual'
+        'Jenis Kendaraan', 'Mode Operasi', 'Metode Perhitungan', 
+        'Berat', 'Tarif Pengiriman per kg', 'Tarif Pengiriman Sistem', 
+        'PPN', 'PPH', 'Total pembayaran aktual'
     ]
     
-    # Reorder if not empty, otherwise create empty with these columns
+    # Filter final_df
     if not final_df.empty:
-        # Ensure all Excel columns exist
-        for col in excel_columns:
-            if col not in final_df.columns:
-                final_df[col] = "" 
-        
-        # Keep source_file if it exists, otherwise strict filter
         cols_to_keep = excel_columns + (['source_file'] if 'source_file' in final_df.columns else [])
         final_df = final_df[cols_to_keep]
     else:
         final_df = pd.DataFrame(columns=excel_columns)
     
-    # Construct Output Filename with Prefix
-    # Prefix: 陆运数据核对
+    # Construct Output Filename
     if filename_suffix:
-        # User provided suffix
         output_filename = f"陆运数据核对 {filename_suffix}.xlsx"
     else:
-        # Default fallback if no suffix provided
         output_filename = f"陆运数据核对 {datetime.now().strftime('%Y-%m-%d')}.xlsx"
         
-    output_path = os.path.join(OUTPUT_FOLDER, output_filename)
-    
+    # Generate Excel in Memory
+    output_io = io.BytesIO()
     try:
         from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
         
-        with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-            # Write ONLY the Excel columns, excluding internal helpers like 'source_file'
+        with pd.ExcelWriter(output_io, engine='openpyxl') as writer:
+            # Write ONLY the Excel columns
             final_df[excel_columns].to_excel(writer, index=False, sheet_name='Sheet1')
             
-            # Access the workbook and sheet
             workbook = writer.book
             worksheet = writer.sheets['Sheet1']
             
-            # Define Styles
+            # Styles
             header_font = Font(name='SimSun', size=11, color="FF0000", bold=True)
+            black_header_font = Font(name='SimSun', size=11, color="000000", bold=True)
             header_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
-            thin_border = Border(left=Side(style='thin'), 
-                                 right=Side(style='thin'), 
-                                 top=Side(style='thin'), 
-                                 bottom=Side(style='thin'))
+            thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
             center_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
             
-            # Apply to Header Row
-            worksheet.row_dimensions[1].height = 30 # Set row height
-            
-            # Special Font for Black Headers
-            black_header_font = Font(name='SimSun', size=11, color="000000", bold=True)
-
+            # Apply to Header
+            worksheet.row_dimensions[1].height = 30
             for cell in worksheet[1]:
                 if cell.value in ['Berat', 'Tarif Pengiriman per kg']:
                      cell.font = black_header_font
                 else:
                      cell.font = header_font
-                
+                     
                 cell.fill = header_fill
                 cell.border = thin_border
                 cell.alignment = center_alignment
                 
-            # Auto-adjust column widths
+            # Auto-adjust widths
             for column in worksheet.columns:
                 max_length = 0
                 column = [cell for cell in column]
@@ -262,37 +202,33 @@ def process_files():
                 adjusted_width = (max_length + 2)
                 worksheet.column_dimensions[column[0].column_letter].width = adjusted_width
 
+        # Seek to beginning
+        output_io.seek(0)
+        
+        # Encode to Base64
+        excel_base64 = base64.b64encode(output_io.getvalue()).decode('utf-8')
+
     except Exception as e:
-        print(f"Error styling excel: {e}")
-        final_df.to_excel(output_path, index=False)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+    # JSON Response
+    data_preview = final_df.replace({float('nan'): None}).to_dict(orient='records')
     
-    # Convert to JSON for preview (limit 100 rows)
-    preview_data = final_df.head(100).to_dict(orient='records')
-    
-    # Calculate Summary
     summary = {
-        "total_files": len(saved_paths),
+        "total_files": len(files),
         "total_rows": len(final_df),
         "total_amount": float(final_df['Total pembayaran aktual'].sum()) if not final_df.empty else 0,
-        "download_url": f"/api/download?filename={output_filename}",
         "output_filename": output_filename,
+        "excel_data": excel_base64, # Base64 encoded file
         "file_details": file_summaries
     }
-
+    
     return jsonify({
-        "success": True,
-        "data": preview_data,
-        "display_columns": excel_columns,
-        "summary": summary
+        "success": True, 
+        "data": data_preview, 
+        "summary": summary,
+        "display_columns": excel_columns
     })
-
-@app.route('/api/download')
-def download():
-    filename = request.args.get('filename')
-    path = os.path.join(OUTPUT_FOLDER, filename)
-    if os.path.exists(path):
-        return send_file(path, as_attachment=True)
-    return "File not found", 404
 
 if __name__ == '__main__':
     app.run(debug=True)

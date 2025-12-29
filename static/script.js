@@ -198,7 +198,8 @@ document.addEventListener('DOMContentLoaded', () => {
         summaryAmount.textContent = formatCurrency(result.summary.total_amount);
 
         // Download Link
-        downloadBtn.href = result.summary.download_url;
+        // downloadBtn.href = result.summary.download_url; // Removed for stateless
+        setupDownloadButton(result.summary.output_filename, result.summary.excel_data);
 
         // Output Filename Display
         if (outputFilenameDisplay && result.summary.output_filename) {
@@ -387,5 +388,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function isNumeric(n) {
         return !isNaN(parseFloat(n)) && isFinite(n);
+    }
+
+    // --- HELPER: Stateless Download ---
+    let currentDownloadHandler = null;
+
+    function setupDownloadButton(filename, base64Data) {
+        if (!downloadBtn) return;
+
+        if (currentDownloadHandler) {
+            downloadBtn.removeEventListener('click', currentDownloadHandler);
+        }
+
+        currentDownloadHandler = (e) => {
+            e.preventDefault();
+            const b64toBlob = (b64Data, contentType = '', sliceSize = 512) => {
+                const byteCharacters = atob(b64Data);
+                const byteArrays = [];
+                for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+                    const slice = byteCharacters.slice(offset, offset + sliceSize);
+                    const byteNumbers = new Array(slice.length);
+                    for (let i = 0; i < slice.length; i++) {
+                        byteNumbers[i] = slice.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    byteArrays.push(byteArray);
+                }
+                return new Blob(byteArrays, { type: contentType });
+            }
+
+            const blob = b64toBlob(base64Data, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        downloadBtn.addEventListener('click', currentDownloadHandler);
+        downloadBtn.href = "#";
     }
 });
