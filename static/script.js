@@ -26,11 +26,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadBtn = document.getElementById('download-btn');
     const tableHeader = document.getElementById('table-header');
     const tableBody = document.getElementById('table-body');
+    const resetBtn = document.getElementById('reset-btn');
+    const tableSearch = document.getElementById('table-search');
+    const outputFilenameDisplay = document.getElementById('output-filename');
 
     // --- State ---
     let selectedFiles = [];
 
-    // --- Drag & Drop Handlers ---
+
+    // ... (drag & drop handlers) ...
+
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            selectedFiles = [];
+            renderFileList(); // Updates UI and hides config panel
+            resultsSection.classList.add('hidden');
+            fileInput.value = '';
+            if (filenameSuffixInput) filenameSuffixInput.value = '';
+            if (tableSearch) tableSearch.value = '';
+            if (outputFilenameDisplay) outputFilenameDisplay.textContent = '';
+
+            // Clear Column Filters
+            const colFilters = document.querySelectorAll('.column-filter');
+            colFilters.forEach(input => input.value = '');
+
+            // Hide Reset Button again
+            resetBtn.classList.add('hidden');
+
+            // Scroll to top smoothly
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    }
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
         document.body.addEventListener(eventName, preventDefaults, false);
@@ -115,6 +141,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.value = '';
     });
 
+
+
     // --- API & Processing ---
 
     processBtn.addEventListener('click', async () => {
@@ -147,6 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (result.success) {
                 renderResults(result);
+                // Show Reset Button only after successful processing
+                if (resetBtn) resetBtn.classList.remove('hidden');
             } else {
                 alert('Error processing files: ' + result.error);
             }
@@ -169,6 +199,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Download Link
         downloadBtn.href = result.summary.download_url;
+
+        // Output Filename Display
+        if (outputFilenameDisplay && result.summary.output_filename) {
+            outputFilenameDisplay.textContent = result.summary.output_filename;
+        }
 
         // Color Palette for files
         const colors = [
@@ -236,36 +271,108 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Exclude 'source_file' from columns header but use it for row styling
-        const allColumns = Object.keys(data[0]);
-        const displayColumns = allColumns.filter(col => col !== 'source_file');
+        const displayColumns = result.display_columns || Object.keys(data[0]).filter(col => col !== 'source_file');
 
         tableHeader.innerHTML = displayColumns.map(col =>
-            `<th scope="col" class="px-6 py-3 font-semibold tracking-wide whitespace-nowrap">${col}</th>`
+            `<th scope="col" class="px-6 py-3 font-semibold tracking-wide whitespace-nowrap bg-slate-100">
+                <div class="flex flex-col gap-2">
+                    <span>${col}</span>
+                    <input type="text" class="column-filter bg-white border border-slate-300 text-slate-900 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-1.5 font-normal" placeholder="Filter ${col}..." data-col="${col}">
+                </div>
+            </th>`
         ).join('');
 
         tableBody.innerHTML = data.map(row => {
             const filename = row['source_file'];
             const color = fileColorMap[filename] || colors[0];
 
-            return `<tr class="bg-white hover:bg-slate-50 transition-colors border-b last:border-0 border-slate-100 border-l-4 ${color.border}">
+            return `<tr class="bg-white hover:bg-slate-50 transition-colors border-b last:border-0 border-slate-100">
                 ${displayColumns.map((col, idx) => {
                 const cellValue = row[col] !== null ? row[col] : '';
                 // Inject filename badge in the first cell
                 if (idx === 0) {
                     return `<td class="px-6 py-4 whitespace-nowrap max-w-[200px]" title="${cellValue}">
                             <div class="flex flex-col">
-                                <span class="truncate block ${isNumeric(row[col]) ? 'font-mono text-right' : ''}">${cellValue}</span>
+                                <span class="cell-data truncate block ${isNumeric(row[col]) ? 'font-mono text-right' : ''}">${cellValue}</span>
                                 <span class="text-[10px] ${color.text} mt-1 font-medium px-1.5 py-0.5 rounded ${color.badge} w-fit opacity-75 max-w-full truncate" title="${filename}">${filename}</span>
                             </div>
                          </td>`;
                 }
-                return `<td class="px-6 py-4 whitespace-nowrap max-w-[200px] truncate ${isNumeric(row[col]) ? 'font-mono text-right' : ''}" title="${cellValue}">${cellValue}</td>`;
+                return `<td class="px-6 py-4 whitespace-nowrap max-w-[200px] truncate ${isNumeric(row[col]) ? 'font-mono text-right' : ''}" title="${cellValue}">
+                        <span class="cell-data">${cellValue}</span>
+                    </td>`;
             }).join('')}
             </tr>`;
         }).join('');
 
+        // Attach Event Listeners for Column Filters
+        const colFilters = document.querySelectorAll('.column-filter');
+        colFilters.forEach(input => {
+            input.addEventListener('input', applyFilters);
+        });
+
         resultsSection.classList.remove('hidden');
         resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function applyFilters() {
+        const globalTerm = tableSearch ? tableSearch.value.toLowerCase() : '';
+        const rows = tableBody.querySelectorAll('tr');
+        const colFilters = document.querySelectorAll('.column-filter');
+
+        // Build map of active column filters: { 'Nama Tugas': 'bgr', 'Plat': 'b99' }
+        const activeColFilters = {};
+        colFilters.forEach(input => {
+            if (input.value.trim() !== '') {
+                activeColFilters[input.dataset.col] = input.value.toLowerCase();
+            }
+        });
+
+        rows.forEach(row => {
+            let matchesGlobal = true;
+            let matchesColumns = true;
+
+            // 1. Global Search Check
+            if (globalTerm) {
+                // We use row.textContent for broad search (includes hidden badge text, which is fine)
+                if (!row.textContent.toLowerCase().includes(globalTerm)) {
+                    matchesGlobal = false;
+                }
+            }
+
+            // 2. Column Filters Check
+            // We need to match specific cell by column index
+            if (matchesGlobal && Object.keys(activeColFilters).length > 0) {
+                // Convert row cells to an object keyed by column name or use index mapping
+                // Since DOM cells are ordered same as displayColumns, we can use index.
+                // But displayColumns is inside renderResults scope. 
+                // Easier approach: recreate the mapping or use index if we reconstruct headers.
+
+                // Let's get header names again from DOM to map index
+                const headers = Array.from(tableHeader.querySelectorAll('th span:first-child')).map(span => span.textContent);
+
+                for (const [colName, filterVal] of Object.entries(activeColFilters)) {
+                    const colIdx = headers.indexOf(colName);
+                    if (colIdx !== -1) {
+                        const cell = row.cells[colIdx];
+                        // Target the specific data span if possible to avoid finding text in badges/tooltips if unnecessary
+                        // But simple textContent is robust enough usually.
+                        const cellText = cell.textContent.toLowerCase();
+                        if (!cellText.includes(filterVal)) {
+                            matchesColumns = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            row.style.display = (matchesGlobal && matchesColumns) ? '' : 'none';
+        });
+    }
+
+    // Update Global Search Listener to use common function
+    if (tableSearch) {
+        tableSearch.addEventListener('input', applyFilters);
     }
 
     // Helper

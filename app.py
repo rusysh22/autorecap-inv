@@ -68,12 +68,12 @@ def process_excel_files(file_paths):
             # Map columns actually found in source
             temp_df['Plat Mobil'] = df.iloc[:, 7]       # Col H
             temp_df['Jenis Kendaraan'] = df.iloc[:, 8]  # Col I
-            temp_df['Mode Operasi'] = df.iloc[:, 9]     # Col J
-            temp_df['Metode Perhitungan'] = df.iloc[:, 14] # Col O
+            temp_df['Mode Operasi'] = df.iloc[:, 9].astype(str).str.lower()     # Col J
+            temp_df['Metode Perhitungan'] = df.iloc[:, 14].astype(str).str.lower().str.replace('per/', '') # Col O
             
             # Defaults for missing columns
-            temp_df['Berat'] = 0 
-            temp_df['Tarif Pengiriman per kg'] = 0 
+            temp_df['Berat'] = "" 
+            temp_df['Tarif Pengiriman per kg'] = "" 
             
             temp_df['Tarif Pengiriman Sistem'] = df.iloc[:, 15] # Col P
             temp_df['PPN'] = df.iloc[:, 20] # Col U
@@ -206,10 +206,10 @@ def process_files():
     # Prefix: 陆运数据核对
     if filename_suffix:
         # User provided suffix
-        output_filename = f"陆运数据核对_{filename_suffix}.xlsx"
+        output_filename = f"陆运数据核对 {filename_suffix}.xlsx"
     else:
         # Default fallback if no suffix provided
-        output_filename = f"陆运数据核对_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+        output_filename = f"陆运数据核对 {datetime.now().strftime('%Y-%m-%d')}.xlsx"
         
     output_path = os.path.join(OUTPUT_FOLDER, output_filename)
     
@@ -235,8 +235,16 @@ def process_files():
             
             # Apply to Header Row
             worksheet.row_dimensions[1].height = 30 # Set row height
+            
+            # Special Font for Black Headers
+            black_header_font = Font(name='SimSun', size=11, color="000000", bold=True)
+
             for cell in worksheet[1]:
-                cell.font = header_font
+                if cell.value in ['Berat', 'Tarif Pengiriman per kg']:
+                     cell.font = black_header_font
+                else:
+                     cell.font = header_font
+                
                 cell.fill = header_fill
                 cell.border = thin_border
                 cell.alignment = center_alignment
@@ -267,12 +275,14 @@ def process_files():
         "total_rows": len(final_df),
         "total_amount": float(final_df['Total pembayaran aktual'].sum()) if not final_df.empty else 0,
         "download_url": f"/api/download?filename={output_filename}",
+        "output_filename": output_filename,
         "file_details": file_summaries
     }
 
     return jsonify({
         "success": True,
         "data": preview_data,
+        "display_columns": excel_columns,
         "summary": summary
     })
 

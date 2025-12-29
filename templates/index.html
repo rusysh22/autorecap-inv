@@ -87,6 +87,18 @@
 
                     <!-- Configuration & File List -->
                     <div id="config-panel" class="glass-panel p-6 rounded-2xl shadow-lg hidden">
+                        <!-- Reset Button (Initially Hidden) -->
+                        <button id="reset-btn"
+                            class="hidden w-full mb-6 flex items-center justify-center px-4 py-3 bg-white border-2 border-red-500 text-red-600 font-bold tracking-wide uppercase rounded-xl hover:bg-red-50 transition-all shadow-sm active:scale-95 group">
+                            <svg class="w-5 h-5 mr-2 group-hover:rotate-180 transition-transform duration-500"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                            RESET ALL FILES
+                        </button>
+
                         <!-- Filename Input -->
                         <div class="mb-6">
                             <label for="filename-suffix" class="block text-sm font-semibold text-slate-700 mb-2">Output
@@ -199,16 +211,43 @@
                         <!-- Data Preview & Download -->
                         <div class="glass-panel rounded-2xl shadow-sm overflow-hidden flex flex-col h-full">
                             <div
-                                class="flex justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50/50">
-                                <h3 class="font-semibold text-lg text-slate-800">Consolidated Preview</h3>
-                                <a id="download-btn" href="#"
-                                    class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium transition-colors shadow-lg shadow-emerald-200 flex items-center gap-2 transform hover:scale-105 active:scale-95">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                                    </svg>
-                                    Download Final Excel
-                                </a>
+                                class="flex flex-col sm:flex-row justify-between items-center px-6 py-4 border-b border-slate-200 bg-slate-50/50 gap-4">
+                                <h3 class="font-semibold text-lg text-slate-800 flex items-center">
+                                    Consolidated Preview
+                                </h3>
+                                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-center">
+                                    <!-- Search Input -->
+                                    <div class="relative w-full sm:w-64">
+                                        <div
+                                            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                            </svg>
+                                        </div>
+                                        <input type="text" id="table-search"
+                                            class="bg-white border border-slate-300 text-slate-900 text-sm rounded-xl focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 shadow-sm"
+                                            placeholder="Search data...">
+                                    </div>
+
+
+
+                                    <!-- Output Filename Display -->
+                                    <span id="output-filename"
+                                        class="text-red-500 font-semibold text-sm hidden sm:inline-block mr-2"></span>
+
+                                    <!-- Download Button -->
+                                    <a id="download-btn" href="#"
+                                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl font-medium transition-all shadow-lg shadow-emerald-200 flex items-center gap-2 transform hover:scale-105 active:scale-95 whitespace-nowrap">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4">
+                                            </path>
+                                        </svg>
+                                        Download Excel
+                                    </a>
+                                </div>
                             </div>
 
                             <div class="overflow-x-auto max-h-[500px] custom-scrollbar">
