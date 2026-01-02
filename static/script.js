@@ -512,9 +512,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderResults(result);
 
                 // Collect anomalies from file summaries
+                // Collect anomalies from file summaries
                 const anomalies = [];
-                if (result.file_summaries) {
-                    result.file_summaries.forEach(f => {
+                // Fix: Access file_details from summary object (result.summary.file_details)
+                const fileSummaries = result.summary && result.summary.file_details ? result.summary.file_details : [];
+
+                if (fileSummaries.length > 0) {
+                    fileSummaries.forEach(f => {
                         if (f.anomalies && f.anomalies.length > 0) {
                             f.anomalies.forEach(a => {
                                 anomalies.push(`<strong>${f.filename}</strong>: ${a}`);
@@ -549,10 +553,56 @@ document.addEventListener('DOMContentLoaded', () => {
         let htmlContent = '';
 
         // 1. Warnings & Errors
+        // 1. Warnings & Errors (Refactored for Grouping)
         if (warnings && warnings.length > 0) {
+
+            // Group anomalies by filename
+            const groupedAnomalies = {};
+            const standardWarnings = [];
+
             warnings.forEach(msg => {
-                // Special handling for Master Data Errors
-                // Special handling for Master Data Errors
+                // Try to extract filename from "<strong>Filename</strong>: Error msg" or similar patterns
+                // Logic: Check if it starts with <strong>...</strong> (our formatted structure)
+                if (msg.startsWith('<strong>')) {
+                    const closingTag = '</strong>: ';
+                    const idx = msg.indexOf(closingTag);
+                    if (idx !== -1) {
+                        const filename = msg.substring(8, idx); // removed <strong>
+                        const errorContent = msg.substring(idx + closingTag.length);
+
+                        if (!groupedAnomalies[filename]) {
+                            groupedAnomalies[filename] = [];
+                        }
+                        groupedAnomalies[filename].push(errorContent);
+                        return;
+                    }
+                }
+
+                // Handling "Master Data File Error" specially or leaving as generic
+                if (msg.includes("Master Data Error") || msg.includes("Columns not found")) {
+                    // Keep existing complex logic or simplify? 
+                    // Let's keep the existing complex renderer for Master Data separately if possible,
+                    // but the current loop structure mixes them.
+                    // For safety, let's treat these complex HTML blocks as "Standard Warnings" 
+                    // unless we want to parse them too. 
+                    // The previous logic generated HTML blocks strings directly into `warnings`? 
+                    // No, `warnings` from backend is list of strings. 
+                    // Wait, `process_excel_files` returns generic strings or formatted?
+                    // Backend returns simpler strings now usually.
+                    // The previous `renderNotifications` implementation handled the internal HTML refactoring.
+                    // Let's re-implement the Master Data HTML logic for `standardWarnings`
+                    standardWarnings.push(msg);
+                } else {
+                    // Check if it's a generic "<strong>Filename</strong>" pattern we missed?
+                    // If backend sends "<strong>File</strong>: ...", we catch it.
+                    // If backend sends "Row X: ...", it is generic.
+                    standardWarnings.push(msg);
+                }
+            });
+
+            // A. Render Standard Warnings (Global/Master Data)
+            standardWarnings.forEach(msg => {
+                // ... (Keep existing Master Data logic here) ...
                 if (msg.includes("Master Data Error") || msg.includes("Columns not found")) {
                     // Attempt to parse "Columns not found in FILENAME. Found: [LIST]"
                     let formattedMsg = msg.replace('Master Data Error:', '').trim();
@@ -563,29 +613,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             const parts = formattedMsg.split("Found: ");
                             if (parts.length > 1) {
-                                // Extract filename: Remove "Columns not found in " and trailing dot
                                 const prefix = parts[0].replace("Columns not found in ", "").trim();
                                 filename = prefix.endsWith('.') ? prefix.slice(0, -1) : prefix;
-
-                                // Extract columns: Parse the content after Found:
                                 let colStr = parts[1];
-
-                                // Try JSON parsing first (new robust method)
                                 try {
                                     foundCols = JSON.parse(colStr);
-                                    if (!Array.isArray(foundCols)) throw new Error("Not array");
                                 } catch (e) {
-                                    // Fallback to legacy string parsing
                                     colStr = colStr.replace(/[\[\]']/g, "");
                                     foundCols = colStr.split(",").map(c => c.trim()).filter(c => c);
                                 }
                             }
-                        } catch (e) {
-                            console.error("Error parsing warning msg", e);
-                        }
+                        } catch (e) { console.error(e); }
                     }
 
-                    // Render Structured Error
                     htmlContent += `
                         <div class="bg-red-50 dark:bg-red-900/40 border-l-4 border-red-500 p-4 rounded-md shadow-sm mb-3">
                             <div class="flex items-start">
@@ -594,38 +634,23 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </svg>
                                 <div class="w-full">
                                     <h4 class="font-bold text-base text-red-900 dark:text-red-50 mb-1">Master Data File Error</h4>
-                                    
                                     ${foundCols.length > 0 ? `
-                                        <p class="text-sm text-red-800 dark:text-red-200 mb-2">
-                                            Required columns <strong>(Kode Tugas, Nama Tugas)</strong> not found in file:
-                                        </p>
+                                        <p class="text-sm text-red-800 dark:text-red-200 mb-2">Required columns <strong>(Kode Tugas, Nama Tugas)</strong> not found in file:</p>
                                         <div class="bg-white/50 dark:bg-black/20 p-2 rounded border border-red-100 dark:border-red-500/30 mb-2">
-                                            <p class="font-mono text-xs text-red-700 dark:text-red-100 font-semibold break-all">
-                                                📄 ${filename}
-                                            </p>
+                                            <p class="font-mono text-xs text-red-700 dark:text-red-100 font-semibold break-all">📄 ${filename}</p>
                                         </div>
                                         <p class="text-xs text-red-700 dark:text-red-300 mb-1 font-medium">Header columns detected in this file:</p>
                                         <div class="bg-red-100/50 dark:bg-black/40 p-2 rounded border border-red-200 dark:border-red-500/30 max-h-32 overflow-y-auto custom-scrollbar">
                                             <div class="flex flex-wrap gap-1">
-                                                ${foundCols.map(col => `
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-800/50 text-red-800 dark:text-red-100 border border-red-200 dark:border-red-700">
-                                                        ${col}
-                                                    </span>
-                                                `).join('')}
+                                                ${foundCols.map(col => `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-red-800/50 text-red-800 dark:text-red-100 border border-red-200 dark:border-red-700">${col}</span>`).join('')}
                                             </div>
                                         </div>
-                                    ` : `
-                                        <p class="text-sm text-red-800 dark:text-red-200 opacity-90 break-words leading-relaxed">
-                                            ${formattedMsg}
-                                        </p>
-                                    `}
+                                    ` : `<p class="text-sm text-red-800 dark:text-red-200 opacity-90 break-words leading-relaxed">${formattedMsg}</p>`}
                                 </div>
                             </div>
                         </div>
                     `;
-                }
-                // Generic Warnings
-                else {
+                } else {
                     htmlContent += `
                         <div class="flex items-start bg-amber-50 dark:bg-amber-900/40 border-l-4 border-amber-400 p-4 rounded-md shadow-sm mb-3">
                             <svg class="h-5 w-5 text-amber-500 dark:text-amber-400 mr-3 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -638,6 +663,46 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                 }
             });
+
+            // B. Render Grouped Anomalies
+            for (const [filename, errors] of Object.entries(groupedAnomalies)) {
+                const uniqueID = 'anomaly-group-' + Math.random().toString(36).substr(2, 9);
+                const errorCount = errors.length;
+                const isCollapsible = errorCount > 3;
+
+                const renderedErrors = errors.map(e => `<li class="py-1 border-b border-amber-200/30 last:border-0">${e}</li>`).join('');
+
+                htmlContent += `
+                    <div class="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 rounded-md shadow-sm mb-3 overflow-hidden">
+                        <div class="p-4 pb-2 flex items-start justify-between cursor-pointer" onclick="document.getElementById('${uniqueID}').classList.toggle('hidden'); this.querySelector('.arrow-icon').classList.toggle('-rotate-90')">
+                             <div class="flex items-center gap-3">
+                                <div class="bg-amber-100 dark:bg-amber-800 p-2 rounded-lg text-amber-600 dark:text-amber-200">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-amber-900 dark:text-amber-100 text-sm">${filename}</h4>
+                                    <p class="text-xs text-amber-700 dark:text-amber-300 mt-0.5">${errorCount} Anomalies found</p>
+                                </div>
+                             </div>
+                             <button class="text-amber-500 hover:text-amber-700 transition-transform duration-200 arrow-icon">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                             </button>
+                        </div>
+                        
+                        <div id="${uniqueID}" class="${isCollapsible ? 'hidden' : ''} bg-amber-100/50 dark:bg-amber-900/40 px-4 py-2 text-xs font-mono text-amber-900 dark:text-amber-200 max-h-60 overflow-y-auto custom-scrollbar border-t border-amber-200 dark:border-amber-700">
+                            <ul class="list-none space-y-0">
+                                ${renderedErrors}
+                            </ul>
+                        </div>
+                        ${isCollapsible ? `
+                             <div class="px-4 py-1.5 bg-amber-100/30 dark:bg-amber-800/20 text-center cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-800/40 transition-colors" onclick="document.getElementById('${uniqueID}').classList.toggle('hidden'); this.previousElementSibling.previousElementSibling.querySelector('.arrow-icon').classList.toggle('-rotate-90')">
+                                <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">Warning Details</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                 `;
+            }
+
         }
 
         // 2. Missing Codes Specific Block
@@ -728,9 +793,14 @@ document.addEventListener('DOMContentLoaded', () => {
             breakdownBody.innerHTML = fileDetails.map((f, index) => {
                 const color = fileColorMap[f.filename];
                 const isError = f.status.startsWith('Error');
-                const statusClass = isError
-                    ? 'text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full text-xs font-semibold'
-                    : 'text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full text-xs font-semibold';
+                const isWarning = f.status === 'Warning';
+
+                let statusClass = 'text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full text-xs font-semibold';
+                if (isError) {
+                    statusClass = 'text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full text-xs font-semibold';
+                } else if (isWarning) {
+                    statusClass = 'text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full text-xs font-semibold';
+                }
 
                 return `
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">

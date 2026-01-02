@@ -211,6 +211,9 @@ def process_excel_files(files, master_mapping=None):
             # Tag with source filename (for frontend display only)
             temp_df['source_file'] = filename_display
 
+            # --- DATA ANOMALY DETECTION ---
+            file_anomalies = []
+
 
             
             # Helper for safe float conversion
@@ -275,8 +278,11 @@ def process_excel_files(files, master_mapping=None):
                 if pph_val is None:
                      pass 
                 elif pph_val > 0:
-                     # print(f"DEBUG: Anomaly Row {row_num} PPH Positive: {pph_val} (Raw: {pph_raw})")
+                     print(f"ANOMALY DETECTED Row {row_num}: PPH Positive: {pph_val} (Raw Value: {pph_raw}, Raw Type: {type(pph_raw)})")
                      file_anomalies.append(f"Row {row_num}: PPH is {pph_val:,.0f} (Expected: Negative)")
+                else:
+                     # print(f"Row {row_num} PPH OK: {pph_val}")
+                     pass
                     
                 # Check 3: PPN (VAT) -> Warning if Negative
                 ppn_raw = row.get('PPN', 0)
