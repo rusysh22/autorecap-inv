@@ -11,8 +11,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnSpinner = document.getElementById('btn-spinner');
     const btnText = processBtn.querySelector('span:not(.sr-only)');
 
-    // Inputs
     const filenameSuffixInput = document.getElementById('filename-suffix');
+
+    // Master Data Elements
+    const tabUpload = document.getElementById('tab-upload');
+    const tabPaste = document.getElementById('tab-paste');
+    const contentUpload = document.getElementById('content-upload');
+    const contentPaste = document.getElementById('content-paste');
+    const masterFileInput = document.getElementById('master-file-input');
+    const masterFileList = document.getElementById('master-file-list');
+    const masterPasteArea = document.getElementById('master-paste-area');
+    const pasteCount = document.getElementById('paste-count');
+    const clearPasteBtn = document.getElementById('clear-paste-btn');
 
     const loadingSection = document.getElementById('loading');
     const resultsSection = document.getElementById('results-section');
@@ -29,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetBtn = document.getElementById('reset-btn');
     const tableSearch = document.getElementById('table-search');
     const outputFilenameDisplay = document.getElementById('output-filename');
+    const notificationArea = document.getElementById('notification-area');
 
     // --- State ---
     let selectedFiles = [];
@@ -38,9 +49,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
+            if (!confirm("Are you sure you want to reset all files and data?")) return;
+
             selectedFiles = [];
             renderFileList(); // Updates UI and hides config panel
             resultsSection.classList.add('hidden');
+            if (notificationArea) notificationArea.classList.add('hidden');
+
             fileInput.value = '';
             if (filenameSuffixInput) filenameSuffixInput.value = '';
             if (tableSearch) tableSearch.value = '';
@@ -55,8 +70,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Scroll to top smoothly
             window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Clear Master Data
+            selectedMasterFiles = [];
+            renderMasterFileList();
+            if (masterPasteArea) {
+                masterPasteArea.value = '';
+                pasteCount.textContent = '0';
+                clearPasteBtn.classList.add('hidden');
+            }
         });
     }
+
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
         document.body.addEventListener(eventName, preventDefaults, false);
@@ -143,6 +168,105 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+    // --- Master Data Handling ---
+    let selectedMasterFiles = [];
+    let pastedMasterData = [];
+
+    // TABS
+    if (tabUpload && tabPaste) {
+        tabUpload.addEventListener('click', () => {
+            tabUpload.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
+            tabUpload.classList.remove('text-slate-500');
+            tabPaste.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
+            tabPaste.classList.add('text-slate-500');
+            contentUpload.classList.remove('hidden');
+            contentPaste.classList.add('hidden');
+        });
+        tabPaste.addEventListener('click', () => {
+            tabPaste.classList.add('bg-white', 'text-blue-600', 'shadow-sm');
+            tabPaste.classList.remove('text-slate-500');
+            tabUpload.classList.remove('bg-white', 'text-blue-600', 'shadow-sm');
+            tabUpload.classList.add('text-slate-500');
+            contentPaste.classList.remove('hidden');
+            contentUpload.classList.add('hidden');
+        });
+    }
+
+    // MULTIPLE FILES
+    if (masterFileInput) {
+        masterFileInput.addEventListener('change', (e) => {
+            const newFiles = Array.from(e.target.files).filter(file =>
+                file.name.endsWith('.xlsx') || file.name.endsWith('.xls')
+            );
+            if (newFiles.length > 0) {
+                selectedMasterFiles = [...selectedMasterFiles, ...newFiles];
+                renderMasterFileList();
+            }
+            masterFileInput.value = ''; // reset to allow re-selecting same file
+        });
+    }
+
+    function renderMasterFileList() {
+        if (!masterFileList) return;
+        masterFileList.innerHTML = '';
+        selectedMasterFiles.forEach((file, index) => {
+            const li = document.createElement('li');
+            li.className = "flex justify-between items-center bg-slate-50 px-2 py-1 rounded border border-slate-200";
+            li.innerHTML = `
+                <span class="truncate pr-2">${file.name}</span>
+                <button class="text-slate-400 hover:text-red-500 font-bold" onclick="removeMasterFile(${index})">×</button>
+            `;
+            masterFileList.appendChild(li);
+        });
+
+        window.removeMasterFile = (index) => {
+            selectedMasterFiles.splice(index, 1);
+            renderMasterFileList();
+        };
+    }
+
+    // PASTE HANDLING
+    if (masterPasteArea) {
+        masterPasteArea.addEventListener('input', () => {
+            parsePastedData(masterPasteArea.value);
+            clearPasteBtn.classList.toggle('hidden', masterPasteArea.value.trim() === '');
+        });
+
+        if (clearPasteBtn) {
+            clearPasteBtn.addEventListener('click', () => {
+                masterPasteArea.value = '';
+                parsePastedData('');
+                clearPasteBtn.classList.add('hidden');
+            });
+        }
+    }
+
+    function parsePastedData(text) {
+        if (!text.trim()) {
+            pastedMasterData = [];
+            pasteCount.textContent = '0';
+            return;
+        }
+
+        const lines = text.trim().split(/\r?\n/);
+        const parsed = [];
+
+        lines.forEach(line => {
+            // Split by Tab or maybe pipe/comma if users try weird stuff. Just Tab for Excel copy.
+            const parts = line.split('\t');
+            if (parts.length >= 2) {
+                const code = parts[0].trim();
+                const name = parts[1].trim();
+                if (code && name) {
+                    parsed.push({ kode: code, nama: name });
+                }
+            }
+        });
+
+        pastedMasterData = parsed;
+        pasteCount.textContent = parsed.length;
+    }
+
     // --- API & Processing ---
 
     processBtn.addEventListener('click', async () => {
@@ -165,6 +289,16 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('filename_suffix', filenameSuffixInput.value);
         }
 
+        // Append Master Files (Multiple)
+        selectedMasterFiles.forEach(file => {
+            formData.append('master_files', file);
+        });
+
+        // Append Pasted Data as JSON
+        if (pastedMasterData.length > 0) {
+            formData.append('master_data_json', JSON.stringify(pastedMasterData));
+        }
+
         try {
             const response = await fetch('/api/process', {
                 method: 'POST',
@@ -175,6 +309,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (result.success) {
                 renderResults(result);
+                renderNotifications(result.warnings);
+
                 // Show Reset Button only after successful processing
                 if (resetBtn) resetBtn.classList.remove('hidden');
             } else {
@@ -190,6 +326,29 @@ document.addEventListener('DOMContentLoaded', () => {
             btnText ? btnText.textContent = "Process Files" : null;
         }
     });
+
+    function renderNotifications(warnings) {
+        if (!notificationArea) return;
+
+        if (!warnings || warnings.length === 0) {
+            notificationArea.classList.add('hidden');
+            notificationArea.innerHTML = '';
+            return;
+        }
+
+        notificationArea.innerHTML = warnings.map(msg => `
+            <div class="flex items-start bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-md shadow-sm mb-2">
+                <svg class="h-5 w-5 text-yellow-500 mr-3 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <div class="text-sm text-yellow-800">
+                    <p class="font-medium">${msg}</p>
+                </div>
+            </div>
+        `).join('');
+
+        notificationArea.classList.remove('hidden');
+    }
 
     function renderResults(result) {
         // Summary Cards
