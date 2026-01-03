@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Invoices - Nefi Excely</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .drop-active {
+            border-color: #d97706;
+            background-color: #fffbeb;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-gray-200 shadow-sm z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="{{ url_for('dashboard') }}"
+                        class="mr-4 text-gray-500 hover:text-amber-600 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </a>
+                    <div class="flex-shrink-0 flex items-center gap-2">
+                        <span class="text-xl font-bold text-gray-900 tracking-tight">Create<span
+                                class="text-amber-600">Invoices</span></span>
+                    </div>
+                </div>
+                <!-- Mode Indicator -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center bg-gray-100 rounded-lg p-1">
+                        <button id="btn-with-tax"
+                            class="px-3 py-1 text-xs font-semibold rounded-md shadow bg-white text-gray-800"
+                            onclick="setTaxMode('with_tax')">With Tax</button>
+                        <button id="btn-no-tax"
+                            class="px-3 py-1 text-xs font-semibold rounded-md text-gray-500 hover:text-gray-900"
+                            onclick="setTaxMode('no_tax')">No Tax</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-auto p-8 relative">
+        <div class="max-w-7xl mx-auto space-y-6">
+
+            <!-- Header Section -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Consolidate Invoices</h1>
+                    <p class="mt-1 text-sm text-gray-500">Upload multiple "Rekapan Invoice" files to merge them.</p>
+                </div>
+                <div id="action-buttons"
+                    class="hidden flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+                    <button onclick="resetApp()"
+                        class="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Reset
+                    </button>
+                    <button onclick="exportData()"
+                        class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700">
+                        Download Consolidated Excel
+                    </button>
+                </div>
+            </div>
+
+            <!-- Config Section -->
+            <details class="bg-white rounded-xl border border-gray-200 shadow-sm group">
+                <summary class="list-none flex items-center justify-between cursor-pointer p-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                                </path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-900">Konfigurasi Invoice</h3>
+                            <p class="text-sm text-gray-500">Atur parameter Invoice (Nomor, Tanggal, Rekening, dll)</p>
+                        </div>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform" fill="none"
+                        stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </summary>
+                <div class="px-6 pb-6 pt-0 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tagihan Kepada (Bill To)</label>
+                        <input type="text" id="conf-bill-to"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2 border"
+                            value="PT GLOBAL JET EXPRESS">
+                        <textarea id="conf-bill-address" rows="3"
+                            class="mt-2 w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2 border"
+                            placeholder="Alamat Tagihan">Gedung Landmark Pluit Tower, Blok B1 Lantai 8,9A,10A, Jl. Pluit Selatan Raya RT.000, RW.000, Penjaringan
+Kota ADM Jakarta Utara, DKI Jakarta</textarea>
+                        <input type="text" id="conf-bill-npwp"
+                            class="mt-2 w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2 border"
+                            value="0735697740041000" placeholder="NPWP Tagihan">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Dikirim Ke (Ship To)</label>
+                        <input type="text" id="conf-ship-to"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2 border"
+                            value="PT GLOBAL JET EXPRESS">
+                        <textarea id="conf-ship-address" rows="3"
+                            class="mt-2 w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2 border"
+                            placeholder="Alamat Pengiriman">Gedung Landmark Pluit Tower, Blok B1 Lantai 8,9A,10A, Jl. Pluit Selatan Raya RT.000, RW.000, Penjaringan
+Kota ADM Jakarta Utara, DKI Jakarta</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nomor Invoice</label>
+                        <input type="text" id="conf-inv-no"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2 border"
+                            placeholder="INV/CJ/MDN/2025/12/...">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Invoice</label>
+                        <input type="date" id="conf-inv-date"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2 border">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Jatuh Tempo (Due Date)</label>
+                        <input type="date" id="conf-due-date"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2 border">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Info Rekening Bank</label>
+                        <input type="text" id="conf-bank"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500 sm:text-sm p-2 border"
+                            value="BCA 1685681899 (KCU PLUIT)">
+                    </div>
+                </div>
+            </details>
+
+            <!-- Upload Area -->
+            <div id="upload-section"
+                class="bg-white p-12 rounded-2xl border-2 border-dashed border-gray-300 hover:border-amber-500 transition-all duration-200 text-center cursor-pointer shadow-sm group">
+                <input type="file" id="fileInput" class="hidden" multiple accept=".xlsx">
+                <div class="space-y-4 pointer-events-none">
+                    <div
+                        class="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
+                        <svg class="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                            </path>
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-lg font-medium text-gray-900">Drop files here or click to upload</p>
+                        <p class="text-sm text-gray-500 mt-1">Supports multiple .xlsx files</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Processing State -->
+            <div id="processing-state" class="hidden flex flex-col items-center justify-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mb-4"></div>
+                <p class="text-gray-900 font-medium">Processing & Consolidating...</p>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-section" class="hidden space-y-6">
+                <!-- Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-xs text-uppercase text-gray-500 font-bold tracking-wider">Total Rows</p>
+                        <p id="stat-count" class="text-2xl font-bold text-gray-900 mt-1">0</p>
+                    </div>
+                </div>
+
+                <!-- Anomalies -->
+                <div id="anomalies-container" class="hidden bg-red-50 border border-red-100 rounded-xl p-4">
+                    <div class="flex items-center mb-2">
+                        <svg class="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                            </path>
+                        </svg>
+                        <h3 class="font-bold text-red-800">Anomalies Detected</h3>
+                    </div>
+                    <ul id="anomalies-list" class="list-disc list-inside text-sm text-red-700 space-y-1 pl-2"></ul>
+                </div>
+
+                <!-- Table -->
+                <div
+                    class="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden flex flex-col h-[500px]">
+                    <div class="overflow-auto flex-1">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Source File</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Surat Jalan</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Plat No</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Jenis</th>
+                                    <th
+                                        class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        Base Amount</th>
+                                    <th
+                                        class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        PPN</th>
+                                    <th
+                                        class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        PPH</th>
+                                    <th
+                                        class="px-6 py-3 text-right text-xs font-bold text-gray-900 uppercase tracking-wider">
+                                        Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body" class="bg-white divide-y divide-gray-200 text-sm">
+                                <!-- JS Populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentTaxMode = 'with_tax';
+        let extractedData = [];
+
+        // UI Helpers
+        function setTaxMode(mode) {
+            currentTaxMode = mode;
+            const btnWith = document.getElementById('btn-with-tax');
+            const btnNo = document.getElementById('btn-no-tax');
+
+            if (mode === 'with_tax') {
+                btnWith.className = "px-3 py-1 text-xs font-semibold rounded-md shadow bg-white text-amber-700 transition-all";
+                btnNo.className = "px-3 py-1 text-xs font-semibold rounded-md text-gray-500 hover:text-gray-900 transition-all";
+            } else {
+                btnWith.className = "px-3 py-1 text-xs font-semibold rounded-md text-gray-500 hover:text-gray-900 transition-all";
+                btnNo.className = "px-3 py-1 text-xs font-semibold rounded-md shadow bg-white text-green-700 transition-all";
+            }
+        }
+
+        function formatMoney(amount) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+        }
+
+        // Upload Logic
+        const dropzone = document.getElementById('upload-section');
+        const fileInput = document.getElementById('fileInput');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drop-active'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drop-active'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('drop-active');
+            handleFiles(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        // Date Handling
+        function setupDateDefaults() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const todayStr = `${yyyy}-${mm}-${dd}`;
+
+            const invDateInput = document.getElementById('conf-inv-date');
+
+            // Set default Invoice Date to Today if empty
+            if (!invDateInput.value) {
+                invDateInput.value = todayStr;
+            }
+
+            // Initial Due Date Calculation
+            updateDueDate();
+        }
+
+        function updateDueDate() {
+            const invDateInput = document.getElementById('conf-inv-date');
+            const dueDateInput = document.getElementById('conf-due-date');
+
+            if (invDateInput.value) {
+                const invDate = new Date(invDateInput.value);
+                const dueDate = new Date(invDate);
+                dueDate.setDate(dueDate.getDate() + 30);
+
+                const yyyy = dueDate.getFullYear();
+                const mm = String(dueDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(dueDate.getDate()).padStart(2, '0');
+
+                dueDateInput.value = `${yyyy}-${mm}-${dd}`;
+            }
+        }
+
+        // Initialize Defaults
+        document.addEventListener('DOMContentLoaded', () => {
+            setTaxMode('with_tax');
+            setupDateDefaults();
+
+            // Listener for auto-updating Due Date
+            document.getElementById('conf-inv-date').addEventListener('change', updateDueDate);
+        });
+
+        async function handleFiles(files) {
+            if (!files.length) return;
+
+            // UI Loading
+            dropzone.classList.add('hidden');
+            document.getElementById('processing-state').classList.remove('hidden');
+            document.getElementById('results-section').classList.add('hidden');
+            document.getElementById('action-buttons').classList.add('hidden');
+
+            const formData = new FormData();
+            for (let f of files) formData.append('files', f);
+            formData.append('tax_mode', currentTaxMode);
+
+            try {
+                const res = await fetch("{{ url_for('create_invoice.process_files') }}", { method: 'POST', body: formData });
+                const json = await res.json();
+
+                if (json.error) throw new Error(json.error);
+
+                renderResults(json);
+
+            } catch (e) {
+                alert("Error: " + e.message);
+                resetApp();
+            }
+        }
+
+        function renderResults(json) {
+            document.getElementById('processing-state').classList.add('hidden');
+            document.getElementById('results-section').classList.remove('hidden');
+            document.getElementById('action-buttons').classList.remove('hidden');
+
+            extractedData = json.data;
+            document.getElementById('stat-count').innerText = json.count;
+
+            // Anomalies
+            const anomContainer = document.getElementById('anomalies-container');
+            const anomList = document.getElementById('anomalies-list');
+            anomList.innerHTML = '';
+
+            if (json.anomalies && json.anomalies.length > 0) {
+                anomContainer.classList.remove('hidden');
+                json.anomalies.forEach(a => {
+                    const li = document.createElement('li');
+                    li.innerText = a;
+                    anomList.appendChild(li);
+                });
+            } else {
+                anomContainer.classList.add('hidden');
+            }
+
+            // Table
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+            json.data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-500">${row.source_file}</td>
+                    <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${row.surat_jalan}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-500">${row.plat_nomor}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${row.jenis_mobil === 'CDDL' || row.jenis_mobil === 'TWB' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${row.jenis_mobil}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-gray-500">${formatMoney(row.base_amount)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-gray-500">${formatMoney(row.ppn)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-gray-500">${formatMoney(row.pph)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right font-bold text-gray-900">${formatMoney(row.final_total)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function exportData() {
+            try {
+                // Collect Config
+                const config = {
+                    bill_to: document.getElementById('conf-bill-to').value,
+                    bill_address: document.getElementById('conf-bill-address').value,
+                    bill_npwp: document.getElementById('conf-bill-npwp').value,
+                    ship_to: document.getElementById('conf-ship-to').value,
+                    ship_address: document.getElementById('conf-ship-address').value,
+                    invoice_no: document.getElementById('conf-inv-no').value,
+                    invoice_date: document.getElementById('conf-inv-date').value,
+                    due_date: document.getElementById('conf-due-date').value,
+                    bank_info: document.getElementById('conf-bank').value,
+                    currency: 'IDR',
+                    tax_mode: currentTaxMode
+                };
+
+                // Basic validation for required fields
+                // Invoice No is optional as per user request
+                if (!config.bill_to || !config.invoice_date || !config.due_date || !config.bank_info) {
+                    alert('Please fill in required Invoice Configuration fields (Bill To, Invoice Date, Due Date, Bank Info).');
+                    return;
+                }
+
+                const res = await fetch("{{ url_for('create_invoice.export_excel') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        data: extractedData,
+                        config: config
+                    })
+                });
+
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Invoices_${currentTaxMode}_${new Date().getTime()}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                } else {
+                    alert('Export failed');
+                }
+            } catch (e) {
+                alert('Export error: ' + e.message);
+            }
+        }
+
+        function resetApp() {
+            dropzone.classList.remove('hidden');
+            fileInput.value = '';
+            document.getElementById('processing-state').classList.add('hidden');
+            document.getElementById('results-section').classList.add('hidden');
+            document.getElementById('action-buttons').classList.add('hidden');
+            extractedData = [];
+        }
+    </script>
+</body>
+
+</html>

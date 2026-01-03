@@ -325,25 +325,18 @@
                 </div>
             </a>
 
-            <!-- Card 3: Create Invoice & Estimation (Coming Soon) -->
-            <div
-                class="group glass-card rounded-[2rem] p-1 relative overflow-hidden block h-full opacity-80 cursor-not-allowed">
-                <!-- Coming Soon Ribon/Badge -->
-                <div class="absolute top-6 right-6 z-20">
-                    <span
-                        class="px-3 py-1 bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-300 text-xs font-bold uppercase tracking-wider rounded-full border border-violet-200 dark:border-violet-700/50">
-                        Coming Soon!
-                    </span>
-                </div>
+            <!-- Card 3: Create Invoice & Estimation -->
+            <a href="{{ url_for('create_invoice.index') }}"
+                class="group glass-card rounded-[2rem] p-1 relative overflow-hidden block h-full">
 
                 <div
                     class="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                 </div>
 
                 <div
-                    class="relative bg-white/50 dark:bg-slate-900/50 h-full rounded-[1.8rem] p-8 lg:p-10 flex flex-col items-start border border-white/40 dark:border-white/5 select-none grayscale-[0.2] hover:grayscale-0 transition-all">
+                    class="relative bg-white/50 dark:bg-slate-900/50 h-full rounded-[1.8rem] p-8 lg:p-10 flex flex-col items-start border border-white/40 dark:border-white/5">
                     <div
-                        class="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700 group-hover:border-violet-500/30 group-hover:bg-violet-50 dark:group-hover:bg-violet-900/20 transition-colors duration-300 shadow-lg">
+                        class="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center mb-6 border border-slate-100 dark:border-slate-700 group-hover:border-violet-500/30 group-hover:bg-violet-50 dark:group-hover:bg-violet-900/20 transition-colors duration-300 shadow-lg group-hover:scale-110 transform transition-transform">
                         <svg class="w-8 h-8 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor"
                             viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
@@ -355,22 +348,20 @@
                         class="text-2xl font-bold text-slate-800 dark:text-white mb-3 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
                         Create Invoice</h3>
                     <p class="text-slate-600 dark:text-slate-400 text-base mb-6 leading-relaxed font-light flex-grow">
-                        Automated invoice creation and intelligent estimation tools. <br>
-                        <span class="text-xs italic text-slate-400 dark:text-slate-500 mt-2 block">Planned
-                            Feature</span>
+                        Consolidate multiple invoice files into a single report. Includes tax handling and anomaly
+                        detection.
                     </p>
 
                     <div
-                        class="mt-auto flex items-center text-slate-400 dark:text-slate-500 font-bold tracking-wide text-sm cursor-not-allowed">
-                        Under Development
-                        <svg class="w-4 h-4 ml-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="mt-auto flex items-center text-violet-600 dark:text-violet-400 font-bold group-hover:translate-x-2 transition-transform tracking-wide text-sm">
+                        Create Now
+                        <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
-                            </path>
+                                d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
                         </svg>
                     </div>
                 </div>
-            </div>
+            </a>
 
         </div>
 
