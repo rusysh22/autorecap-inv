@@ -501,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch('/api/process', {
+            const response = await fetch(window.API_URL || '/api/process', {
                 method: 'POST',
                 body: formData
             });

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Recapitulation System</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .drop-active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-gray-200 shadow-sm z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="{{ url_for('dashboard') }}"
+                        class="mr-4 text-gray-500 hover:text-blue-600 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </a>
+                    <div class="flex-shrink-0 flex items-center">
+                        <span class="text-xl font-bold text-gray-900 tracking-tight">Invoice<span
+                                class="text-blue-600">Recap</span></span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-500">v1.0.0</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-auto p-8 relative">
+        <div class="max-w-7xl mx-auto space-y-6">
+
+            <!-- Header Section -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Dashboard Rekapitulasi</h1>
+                    <p class="mt-1 text-sm text-gray-500">Upload multiple invoice files to automatically extract and
+                        consolidate data.</p>
+                </div>
+                <div id="action-buttons"
+                    class="hidden flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+                    <button onclick="resetApp()"
+                        class="px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Clear Check
+                    </button>
+                    <button onclick="exportData()"
+                        class="px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        Download Excel Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upload Area -->
+            <div id="upload-section"
+                class="bg-white p-8 rounded-lg border-2 border-dashed border-gray-300 hover:border-blue-500 transition-colors duration-200 text-center cursor-pointer shadow-sm">
+                <input type="file" id="fileInput" class="hidden" multiple accept=".xlsx">
+                <div class="space-y-2 pointer-events-none">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48"
+                        aria-hidden="true">
+                        <path
+                            d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <div class="flex text-sm text-gray-600 justify-center">
+                        <span class="font-medium text-blue-600 hover:text-blue-500">Upload multiple files</span>
+                        <p class="pl-1">or drag and drop</p>
+                    </div>
+                    <p class="text-xs text-gray-500">Excel files (.xlsx) only</p>
+                </div>
+            </div>
+
+            <!-- Processing State -->
+            <div id="processing-state" class="hidden bg-white p-6 rounded-lg shadow-sm text-center">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                <p class="text-sm font-medium text-gray-900">Processing files...</p>
+                <p class="text-xs text-gray-500 mt-1">Mohon tunggu sebentar, sedang mengekstrak data.</p>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-section" class="hidden space-y-6">
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white overflow-hidden shadow rounded-lg">
+                        <div class="px-4 py-5 sm:p-6">
+                            <dt class="text-sm font-medium text-gray-500 truncate">Total Processed</dt>
+                            <dd id="count-total" class="mt-1 text-3xl font-semibold text-gray-900">0</dd>
+                        </div>
+                    </div>
+                    <div class="bg-white overflow-hidden shadow rounded-lg border-l-4 border-green-500">
+                        <div class="px-4 py-5 sm:p-6">
+                            <dt class="text-sm font-medium text-gray-500 truncate">Successful</dt>
+                            <dd id="count-success" class="mt-1 text-3xl font-semibold text-green-600">0</dd>
+                        </div>
+                    </div>
+                    <div class="bg-white overflow-hidden shadow rounded-lg border-l-4 border-red-500">
+                        <div class="px-4 py-5 sm:p-6">
+                            <dt class="text-sm font-medium text-gray-500 truncate">Failed</dt>
+                            <dd id="count-failed" class="mt-1 text-3xl font-semibold text-red-600">0</dd>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Failed Files List (Conditional) -->
+                <div id="failed-files-container" class="hidden bg-red-50 border border-red-200 rounded-md p-4">
+                    <h3 class="text-sm font-medium text-red-800 mb-2">Files with Errors:</h3>
+                    <ul id="failed-files-list" class="list-disc list-inside text-sm text-red-700 space-y-1"></ul>
+                </div>
+
+                <!-- Data Table -->
+                <div class="bg-white shadow overflow-hidden sm:rounded-lg flex flex-col h-[500px]">
+                    <div class="overflow-x-auto flex-1">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0 z-10">
+                                <tr>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Filename</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Tagihan Kepada</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Dikirim Ke</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        No. Invoice</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Inv Date</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Due Date</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Currency</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        DPP</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Total Diskon</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        PPN</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        PPH</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Total Bayar</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="result-table-body" class="bg-white divide-y divide-gray-200">
+                                <!-- filled by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 border-t border-gray-200 text-sm text-gray-500 text-right">
+                        Showing successful extractions only
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const dropzone = document.getElementById('upload-section');
+        const fileInput = document.getElementById('fileInput');
+        const processingState = document.getElementById('processing-state');
+        const resultsSection = document.getElementById('results-section');
+        const failedContainer = document.getElementById('failed-files-container');
+        const actionButtons = document.getElementById('action-buttons');
+
+        let extractedData = [];
+
+        // Formatting Utility
+        const formatRupiah = (number) => {
+            if (number === null || number === undefined) return '';
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(number);
+        };
+
+        // Drag & Drop handlers
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('drop-active');
+        });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drop-active'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('drop-active');
+            handleFiles(e.dataTransfer.files);
+        });
+        dropzone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        async function handleFiles(files) {
+            if (files.length === 0) return;
+
+            // UI State Update
+            dropzone.classList.add('hidden');
+            processingState.classList.remove('hidden');
+            resultsSection.classList.add('hidden');
+            actionButtons.classList.add('hidden');
+            failedContainer.classList.add('hidden');
+
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+
+            try {
+                const response = await fetch("{{ url_for('reconciliation.process_files') }}", {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const results = await response.json();
+                renderResults(results);
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Something went wrong during processing.");
+                resetApp();
+            }
+        }
+
+        function renderResults(results) {
+            processingState.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+            actionButtons.classList.remove('hidden');
+
+            const successFiles = results.filter(r => r.status === 'success');
+            const failedFiles = results.filter(r => r.status === 'failed');
+            extractedData = successFiles.map(r => r.data); // Keep clean data for export
+
+            // Update Counts
+            document.getElementById('count-total').innerText = results.length;
+            document.getElementById('count-success').innerText = successFiles.length;
+            document.getElementById('count-failed').innerText = failedFiles.length;
+
+            // Render Table (Success only)
+            const tbody = document.getElementById('result-table-body');
+            tbody.innerHTML = '';
+
+            successFiles.forEach(item => {
+                const row = document.createElement('tr');
+                const d = item.data;
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">${item.filename}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate max-w-xs" title="${d.tagihan_kepada}">${d.tagihan_kepada}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 truncate max-w-xs" title="${d.dikirim_ke}">${d.dikirim_ke}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${d.no_invoice}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${d.invoice_date}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${d.due_date}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${d.currency}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatRupiah(d.dpp)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatRupiah(d.diskon)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatRupiah(d.ppn)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatRupiah(d.pph)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono font-bold text-gray-900">${formatRupiah(d.total_bayar)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">OK</span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Render Failed List
+            if (failedFiles.length > 0) {
+                failedContainer.classList.remove('hidden');
+                const list = document.getElementById('failed-files-list');
+                list.innerHTML = '';
+                failedFiles.forEach(item => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span class="font-semibold">${item.filename}</span>: ${item.error}`;
+                    list.appendChild(li);
+                });
+            }
+        }
+
+        async function exportData() {
+            if (extractedData.length === 0) {
+                alert("No data to export.");
+                return;
+            }
+
+            try {
+                const response = await fetch("{{ url_for('reconciliation.export_excel') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(extractedData)
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+
+                    // Try to get filename from headers or use default
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'recap_invoice.xlsx';
+                    if (contentDisposition) {
+                        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                        if (match) filename = match[1];
+                    }
+
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                } else {
+                    alert("Export failed.");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error downloading file.");
+            }
+        }
+
+        function resetApp() {
+            dropzone.classList.remove('hidden');
+            processingState.classList.add('hidden');
+            resultsSection.classList.add('hidden');
+            actionButtons.classList.add('hidden');
+            fileInput.value = ''; // clear input
+            extractedData = []; // clear data
+        }
+    </script>
+</body>
+
+</html>

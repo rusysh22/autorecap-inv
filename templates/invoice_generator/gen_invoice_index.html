@@ -5,12 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nefi Auto - Invoice AutoRecap</title>
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
         }
+        window.API_URL = "{{ url_for('invoice_generator.process_files') }}";
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -66,6 +67,16 @@
 
 <body class="text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
 
+    <!-- Back to Dashboard -->
+    <a href="{{ url_for('dashboard') }}"
+        class="fixed top-4 left-4 p-2 rounded-full glass-panel text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all z-50 flex items-center gap-2 group decoration-none">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 group-hover:-translate-x-1 transition-transform"
+            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        <span class="pr-2 font-medium hidden group-hover:inline-block transition-all text-sm">Dashboard</span>
+    </a>
+
     <!-- Dark Mode Toggle -->
     <button id="themeToggle"
         class="fixed top-4 right-4 p-2 rounded-full glass-panel text-slate-600 dark:text-yellow-400 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all z-50">
@@ -95,7 +106,7 @@
         <!-- Header -->
         <div class="mb-10 text-center">
             <h1
-                class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-300 mb-2">
+                class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-300 mb-2">
                 Nefi AutoRecap File Invoice - JNT Express
             </h1>
             <p class="text-slate-600 dark:text-slate-400 text-lg">Consolidate Vendor J&T Express Invoices into System
@@ -421,7 +432,7 @@
         <p>&copy; 2025-2026 by <span class="font-medium text-slate-500">Nefi Yunilistya</span></p>
     </footer>
 
-    <script src="/static/script.js"></script>
+    <script src="{{ url_for('invoice_generator.static', filename='script.js') }}"></script>
     <!-- Preview Modal -->
     <div id="preview-modal" class="fixed inset-0 z-[60] hidden" aria-labelledby="modal-title" role="dialog"
         aria-modal="true">
