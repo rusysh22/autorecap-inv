@@ -5,6 +5,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nefi Excely CJ</title>
+
+    <!-- Open Graph / WhatsApp Card Chat -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url_for('dashboard', _external=True) }}">
+    <meta property="og:title" content="Nefi Excely Tools CJ by NefiYuni">
+    <meta property="og:description"
+        content="Seamlessly reconcile Application Data with Invoice Files. Professional tools for automated financial accuracy.">
+    <!-- WhatsApp prefers PNG/JPG. Upload a 1200x630 image named 'preview.png' to static/ for best results. -->
+    <meta property="og:image" content="{{ url_for('static', filename='cardchat.png', _external=True) }}">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Nefi Excely Tools CJ by NefiYuni">
+    <meta name="twitter:description"
+        content="Seamlessly reconcile Application Data with Invoice Files. Professional tools for automated financial accuracy.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='cardchat.png', _external=True) }}">
+
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
